@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/qedus/nds"
+	"github.com/aaronhanson/nds"
 
 	"golang.org/x/net/context"
 	"google.golang.org/appengine"

@@ -2,6 +2,7 @@ package nds
 
 import (
 	"bytes"
+//	"encoding/gob"
 	"encoding/binary"
 	"math/rand"
 	"reflect"
@@ -160,14 +161,17 @@ func getMulti(c context.Context,
 		return err
 	}
 
+	log.Infof(c, "loading memcache items")
 	loadMemcache(memcacheCtx, cacheItems)
 
+	log.Infof(c, "locking memcache items")
 	lockMemcache(memcacheCtx, cacheItems)
 
 	if err := loadDatastore(c, cacheItems, vals.Type()); err != nil {
 		return err
 	}
 
+	log.Infof(c, "saving memcache items")
 	saveMemcache(memcacheCtx, cacheItems)
 
 	me, errsNil := make(appengine.MultiError, len(cacheItems)), true
@@ -191,6 +195,7 @@ func loadMemcache(c context.Context, cacheItems []cacheItem) {
 		memcacheKeys[i] = cacheItem.memcacheKey
 	}
 
+	log.Infof(c, "memcacheGetMulti")
 	items, err := memcacheGetMulti(c, memcacheKeys)
 	if err != nil {
 		for i := range cacheItems {
@@ -200,8 +205,15 @@ func loadMemcache(c context.Context, cacheItems []cacheItem) {
 		return
 	}
 
+	log.Infof(c, "iterating memcache keys")
+	setValueElapsedTotal := int64(0)
+	unmarshalElapsedTotal := int64(0)
+	records := 0
+//	decoder_buffer := new(bytes.Buffer)
+//	decoder := gob.NewDecoder(decoder_buffer)
 	for i, memcacheKey := range memcacheKeys {
 		if item, ok := items[memcacheKey]; ok {
+			records++
 			switch item.Flags {
 			case lockItem:
 				cacheItems[i].state = externalLock
@@ -210,23 +222,36 @@ func loadMemcache(c context.Context, cacheItems []cacheItem) {
 				cacheItems[i].err = datastore.ErrNoSuchEntity
 			case entityItem:
 				pl := datastore.PropertyList{}
+				unmarshalStart := time.Now().UnixNano()
+				log.Infof(c, "without special buffer")
+				/*
+				decoder_buffer.Write(item.Value)
+				decoder.Decode(&pl)
+				decoder_buffer.Reset()
+				*/
 				if err := unmarshal(item.Value, &pl); err != nil {
 					log.Warningf(c, "nds:loadMemcache unmarshal %s", err)
 					cacheItems[i].state = externalLock
 					break
 				}
+				unmarshalElapsedTotal += time.Now().UnixNano() - unmarshalStart
+				setValueStart := time.Now().UnixNano()
 				if err := setValue(cacheItems[i].val, pl); err == nil {
 					cacheItems[i].state = done
 				} else {
 					log.Warningf(c, "nds:loadMemcache setValue %s", err)
 					cacheItems[i].state = externalLock
 				}
+				setValueElapsedTotal += time.Now().UnixNano() - setValueStart
 			default:
 				log.Warningf(c, "nds:loadMemcache unknown item.Flags %d", item.Flags)
 				cacheItems[i].state = externalLock
 			}
 		}
 	}
+	log.Infof(c, "memached entities: %d", records)
+	log.Infof(c, "unmarshal elapsed time: %d", unmarshalElapsedTotal)
+	log.Infof(c, "setValue elapsed time: %d", setValueElapsedTotal)
 }
 
 // itemLock creates a pseudorandom memcache lock value that enables each call of

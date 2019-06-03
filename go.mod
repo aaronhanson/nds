@@ -1,4 +1,4 @@
-module github.com/qedus/nds
+module github.com/aaronhanson/nds
 
 require (
 	golang.org/x/net v0.0.0-20181107093936-a544f70c90f1
