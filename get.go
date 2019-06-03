@@ -2,7 +2,7 @@ package nds
 
 import (
 	"bytes"
-	"encoding/gob"
+//	"encoding/gob"
 	"encoding/binary"
 	"math/rand"
 	"reflect"
@@ -206,12 +206,12 @@ func loadMemcache(c context.Context, cacheItems []cacheItem) {
 	}
 
 	log.Infof(c, "iterating memcache keys")
-	log.Infof(c, "with special buffer")
+	log.Infof(c, "without special buffer")
 	setValueElapsedTotal := int64(0)
 	unmarshalElapsedTotal := int64(0)
 	records := 0
-	decoder_buffer := new(bytes.Buffer)
-	decoder := gob.NewDecoder(decoder_buffer)
+//	decoder_buffer := new(bytes.Buffer)
+//	decoder := gob.NewDecoder(decoder_buffer)
 	for i, memcacheKey := range memcacheKeys {
 		if item, ok := items[memcacheKey]; ok {
 			records++
@@ -224,14 +224,14 @@ func loadMemcache(c context.Context, cacheItems []cacheItem) {
 			case entityItem:
 				pl := datastore.PropertyList{}
 				unmarshalStart := time.Now().UnixNano()
-				decoder_buffer.Write(item.Value)
-				decoder.Decode(&pl)
-				decoder_buffer.Reset()
-//				if err := unmarshal(item.Value, &pl); err != nil {
-//					log.Warningf(c, "nds:loadMemcache unmarshal %s", err)
-//					cacheItems[i].state = externalLock
-//					break
-//				}
+//				decoder_buffer.Write(item.Value)
+//				decoder.Decode(&pl)
+//				decoder_buffer.Reset()
+				if err := unmarshal(item.Value, &pl); err != nil {
+					log.Warningf(c, "nds:loadMemcache unmarshal %s", err)
+					cacheItems[i].state = externalLock
+					break
+				}
 				unmarshalElapsedTotal += time.Now().UnixNano() - unmarshalStart
 				setValueStart := time.Now().UnixNano()
 				if err := setValue(cacheItems[i].val, pl); err == nil {
