@@ -2,7 +2,7 @@ package nds
 
 import (
 	"bytes"
-//	"encoding/gob"
+	"encoding/gob"
 	"encoding/binary"
 	"math/rand"
 	"reflect"
