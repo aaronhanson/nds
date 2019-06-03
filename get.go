@@ -160,14 +160,17 @@ func getMulti(c context.Context,
 		return err
 	}
 
+	log.Infof(c, "loading memcache items")
 	loadMemcache(memcacheCtx, cacheItems)
 
+	log.Infof(c, "locking memcache items")
 	lockMemcache(memcacheCtx, cacheItems)
 
 	if err := loadDatastore(c, cacheItems, vals.Type()); err != nil {
 		return err
 	}
 
+	log.Infof(c, "saving memcache items")
 	saveMemcache(memcacheCtx, cacheItems)
 
 	me, errsNil := make(appengine.MultiError, len(cacheItems)), true
@@ -191,6 +194,7 @@ func loadMemcache(c context.Context, cacheItems []cacheItem) {
 		memcacheKeys[i] = cacheItem.memcacheKey
 	}
 
+	log.Infof(c, "memcacheGetMulti")
 	items, err := memcacheGetMulti(c, memcacheKeys)
 	if err != nil {
 		for i := range cacheItems {
@@ -200,6 +204,7 @@ func loadMemcache(c context.Context, cacheItems []cacheItem) {
 		return
 	}
 
+	log.Infof(c, "iterating memcache keys")
 	for i, memcacheKey := range memcacheKeys {
 		if item, ok := items[memcacheKey]; ok {
 			switch item.Flags {
